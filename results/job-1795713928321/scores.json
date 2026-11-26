@@ -1,0 +1,5 @@
+{
+  "engine": "chai-1",
+  "status": "failed",
+  "error": "rotein)                      ^^^^^^^^^^^^^^^^^^^^^^   File /home/jong/actions-runner-kif2c/_work/kif2c-binding-platform/kif2c-binding-platform/runner/constraints/parser.py, line 91, in to_chai1     raise ValueError(f約束殘基 {resi} 超出 protein 長度 {len(protein_seq)}) ValueError: 約束殘基 120 超出 protein 長度 83 "
+}
