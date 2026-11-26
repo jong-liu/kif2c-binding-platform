@@ -1,0 +1,22 @@
+{
+  "id": "job-1795713928321",
+  "created_at": "2026-11-26T17:25:28Z",
+  "protein": {
+    "chain": "A",
+    "source": "sequence",
+    "sequence": "MSEVKLAVRVRPLNAREKERNAKCVVSVDPNKNAIKLYDPKNNNNNLSQDKNKQFSFDYSYWSHDGFLNDKYASQEQVFEDLG"
+  },
+  "peptide": {
+    "chain": "B",
+    "sequence": "AKMTRFLP"
+  },
+  "constraint": "A:120-130",
+  "engine": "chai-1",
+  "seed": 42,
+  "num_trunk_recycles": 2,
+  "num_diffn_timesteps": 120,
+  "use_esm": true,
+  "est_tokens": 91,
+  "submitted_by": "demo",
+  "status": "queued"
+}
