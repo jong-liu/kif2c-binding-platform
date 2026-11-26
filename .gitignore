@@ -4,6 +4,8 @@
 # ── 機密 ────────────────────────────────────────────────────────
 .env
 .env.*
+!.env.example
+!backend/.env.example
 *.key
 *.pem
 credentials.*
