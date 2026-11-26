@@ -1,6 +1,11 @@
-# MVP stub 階段：純標準庫即可（無外部相依）。
-# Phase 1 接真實引擎時再加（擇一或並存）：
-#   chai_lab            # Chai-1（Apache 2.0，主引擎）
-#   boltz              # Boltz-2（MIT，對照/備援）
-#   biopython          # 結構後處理、距離計算、CIF↔PDB 轉換
-#   numpy
+# 真實引擎（Phase 1）。需 Python 3.10–3.12（本機以 uv 建 3.12 venv，因系統 python 為 3.14）。
+chai_lab        # Chai-1 主引擎（Apache 2.0）；會一併安裝 PyTorch(CUDA)
+gemmi          # 結構 I/O：CIF→PDB 轉換、約束滿足度的距離計算
+numpy
+
+# 對照/備援引擎（Phase 3，暫不裝）：
+#   boltz        # Boltz-2（MIT）
+
+# 安裝（本機）：
+#   uv venv --python 3.12 runner/.venv
+#   uv pip install --python runner/.venv/bin/python -r runner/requirements.txt

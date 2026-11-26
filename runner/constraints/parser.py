@@ -69,9 +69,43 @@ def constrained_residues(c: Constraint) -> list[int]:
     return sorted(set(out))
 
 
-# TODO(Phase 1/3)：真實引擎 adapter
-# def to_chai1(c: Constraint) -> str: ...   # → restraints.csv（chainA:res,chainB:*|max_dist,type）
-# def to_boltz2(c: Constraint) -> dict: ... # → YAML constraints（pocket/contact + steering）
+CHAI_HEADER = ("restraint_id,chainA,res_idxA,chainB,res_idxB,connection_type,"
+               "confidence,min_distance_angstrom,max_distance_angstrom,comment")
+
+
+def to_chai1(c: Constraint, protein_seq: str,
+             protein_chain: str = "A", peptide_chain: str = "B") -> str | None:
+    """約束 → Chai-1 restraints CSV 內容。回傳 None 表示無約束（原生預測）。
+
+    語意：我們只指定 Chain A(protein) 的位點，peptide(Chain B) 任一殘基須靠近 →
+    正好是 Chai 的 *pocket* restraint（res_idxA 留空=binder 任一殘基，
+    res_idxB=protein 指定殘基）。每個被約束殘基產生一條 pocket restraint。
+
+    Chai 會核對 res_idx 的「殘基字母+1-based 序號」與輸入序列相符，故需查序列。
+    """
+    if c.mode == "free":
+        return None
+    rows = [CHAI_HEADER]
+    for i, resi in enumerate(constrained_residues(c)):
+        if resi < 1 or resi > len(protein_seq):
+            raise ValueError(f"約束殘基 {resi} 超出 protein 長度 {len(protein_seq)}")
+        letter = protein_seq[resi - 1]
+        # chainA 欄=binder(peptide, 任一殘基, res 留空)；chainB 欄=protein 指定殘基
+        rows.append(
+            f"r{i},{peptide_chain},,{protein_chain},{letter}{resi},pocket,"
+            f"1.0,0.0,{c.max_dist},auto-site-{resi}"
+        )
+    return "\n".join(rows) + "\n"
+
+
+def build_fasta(protein_seq: str, peptide_seq: str) -> str:
+    """Chai-1 FASTA：第一條=Chain A(protein)，第二條=Chain B(peptide)。"""
+    return (f">protein|name=chainA\n{protein_seq}\n"
+            f">protein|name=chainB\n{peptide_seq}\n")
+
+
+# TODO(Phase 3)：Boltz-2 adapter（YAML constraints：pocket/contact + steering）
+# def to_boltz2(c: Constraint) -> dict: ...
 
 
 if __name__ == "__main__":

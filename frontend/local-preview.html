@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KIF2C · 本機結果預覽</title>
+  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <h1>🧬 本機結果預覽（stub end-to-end）</h1>
+    <p class="sub">直接讀本機 <code>results/&lt;id&gt;/</code>，不經 GitHub。用於離線驗證「呈現＋下載」。</p>
+  </header>
+
+  <section class="card">
+    <label>選擇結果
+      <select id="pick"></select>
+    </label>
+    <div id="viewer" style="width:100%;height:460px;position:relative;"></div>
+    <div class="row">
+      <button id="dl" disabled>⬇ 下載結構（.pdb）</button>
+      <span id="meta" class="muted"></span>
+    </div>
+    <pre id="scores" class="muted" style="white-space:pre-wrap;"></pre>
+  </section>
+
+  <script>
+    const $ = (i)=>document.getElementById(i);
+    // 本機示範用：examples/ 下的結果（實務上前端是向 GitHub 列 results/）
+    const ITEMS = [
+      {dir:"result-kif2c-chai", label:"KIF2C + peptide（真實 Chai-1，約束 A:20-30）"},
+      {dir:"result-sample",     label:"stub 假引擎範例"},
+    ];
+    let cur=null, curPdb=null;
+
+    ITEMS.forEach(it=>{ const o=document.createElement("option"); o.value=it.dir; o.textContent=it.label; $("pick").appendChild(o); });
+
+    async function load(dir){
+      cur=dir; $("meta").textContent="載入中…";
+      const pdb = await (await fetch(`../examples/${dir}/complex.pdb`)).text();
+      curPdb=pdb;
+      let s={}; try{ s=await (await fetch(`../examples/${dir}/scores.json`)).json(); }catch{}
+      const el=$("viewer"); el.innerHTML="";
+      const v=$3Dmol.createViewer(el,{backgroundColor:"#0d0f16"});
+      v.addModel(pdb,"pdb");
+      v.setStyle({chain:"A"},{cartoon:{color:"#5b8cff"}, sphere:{radius:0.5,color:"#5b8cff"}});
+      v.setStyle({chain:"B"},{sphere:{radius:0.9,color:"#d29922"}, stick:{color:"#d29922"}});
+      v.zoomTo(); v.render();
+      $("dl").disabled=false;
+      $("meta").textContent=`${id} · Chain A=藍(protein), Chain B=金(peptide)`;
+      $("scores").textContent="scores.json:\n"+JSON.stringify(s,null,2);
+    }
+    $("pick").onchange=()=>load($("pick").value);
+    $("dl").onclick=()=>{ if(!curPdb)return; const b=new Blob([curPdb],{type:"chemical/x-pdb"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=`${cur}_complex.pdb`; a.click(); };
+    load(ITEMS[0].dir);
+  </script>
+</body>
+</html>

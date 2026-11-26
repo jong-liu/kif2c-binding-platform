@@ -28,27 +28,16 @@ jobs:
           pip install -q -r runner/requirements.txt
 
       - name: Run pending predictions
-        run: |
-          . runner/.venv/bin/activate
-          shopt -s nullglob
-          ran=0
-          for spec in jobs/*.json; do
-            id=$(basename "$spec" .json)
-            if [ -d "results/$id" ]; then
-              echo "✓ $id 已有結果，跳過"
-              continue
-            fi
-            echo "▶ 執行 $id"
-            python runner/run_prediction.py --spec "$spec" --out "results/$id"
-            ran=$((ran+1))
-          done
-          echo "ran=$ran" >> "$GITHUB_ENV"
+        run: bash runner/run_pending.sh
 
       - name: Commit results
-        if: env.ran != '0'
         run: |
           git config user.name  "kif2c-runner[bot]"
           git config user.email "runner@users.noreply.github.com"
           git add results/
-          git commit -m "results: $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "無新結果"
-          git push
+          if git diff --cached --quiet; then
+            echo "無新結果，略過 commit"
+          else
+            git commit -m "results: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push
+          fi
