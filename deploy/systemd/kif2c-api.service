@@ -1,0 +1,14 @@
+[Unit]
+Description=KIF2C Binding Platform API (Flask backend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/kif2c-binding-platform/backend
+EnvironmentFile=%h/kif2c-binding-platform/backend/.env
+ExecStart=%h/kif2c-binding-platform/backend/.venv/bin/python api_server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

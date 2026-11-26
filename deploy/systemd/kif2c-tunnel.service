@@ -1,0 +1,14 @@
+[Unit]
+Description=KIF2C cloudflared tunnel -> localhost:8000
+After=network-online.target kif2c-api.service
+Wants=network-online.target kif2c-api.service
+
+[Service]
+ExecStart=/usr/local/bin/cloudflared tunnel --url http://localhost:8000 --protocol http2 --no-autoupdate
+# 隧道啟動後，自動把新網址寫回前端並重新部署 Pages（- 前綴：失敗不影響隧道）
+ExecStartPost=-/bin/bash %h/kif2c-binding-platform/scripts/sync_tunnel_url.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
