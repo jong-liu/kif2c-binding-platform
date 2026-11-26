@@ -1,0 +1,12 @@
+restraint_id,chainA,res_idxA,chainB,res_idxB,connection_type,confidence,min_distance_angstrom,max_distance_angstrom,comment
+r0,B,,A,R20,pocket,1.0,0.0,8.0,auto-site-20
+r1,B,,A,N21,pocket,1.0,0.0,8.0,auto-site-21
+r2,B,,A,A22,pocket,1.0,0.0,8.0,auto-site-22
+r3,B,,A,K23,pocket,1.0,0.0,8.0,auto-site-23
+r4,B,,A,C24,pocket,1.0,0.0,8.0,auto-site-24
+r5,B,,A,V25,pocket,1.0,0.0,8.0,auto-site-25
+r6,B,,A,V26,pocket,1.0,0.0,8.0,auto-site-26
+r7,B,,A,S27,pocket,1.0,0.0,8.0,auto-site-27
+r8,B,,A,V28,pocket,1.0,0.0,8.0,auto-site-28
+r9,B,,A,D29,pocket,1.0,0.0,8.0,auto-site-29
+r10,B,,A,P30,pocket,1.0,0.0,8.0,auto-site-30

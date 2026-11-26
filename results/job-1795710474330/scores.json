@@ -1,0 +1,26 @@
+{
+  "engine": "chai-1",
+  "engine_ver": "0.6.1",
+  "plddt": 69.16,
+  "ptm": 0.612,
+  "iptm": 0.141,
+  "aggregate_score": 0.235,
+  "contact_satisfied": 1.0,
+  "constraint_mode": "range",
+  "constrained_residues": [
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30
+  ],
+  "best_model_idx": 0,
+  "use_esm_embeddings": true,
+  "rank_score": 0.141
+}
