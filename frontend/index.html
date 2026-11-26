@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KIF2C Binding Platform</title>
+  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <h1>🧬 KIF2C Binding Platform</h1>
+    <p class="sub">Protein–Peptide 結合位點約束結構預測 · Chain A = Protein，Chain B = Peptide</p>
+  </header>
+
+  <!-- 設定（MVP：貼 repo 與 Personal Access Token；之後換 GitHub OAuth） -->
+  <section id="settings" class="card">
+    <h2>① 連線設定</h2>
+    <label>GitHub Repo（owner/name）
+      <input id="repo" placeholder="your-account/kif2c-binding-platform" />
+    </label>
+    <label>Personal Access Token（fine-grained，需 repo 寫入權；僅存本機 localStorage）
+      <input id="token" type="password" placeholder="github_pat_..." />
+    </label>
+    <button id="saveCfg">儲存設定</button>
+    <span id="cfgState" class="muted"></span>
+  </section>
+
+  <!-- 送單 -->
+  <section id="submit" class="card">
+    <h2>② 送出預測</h2>
+    <label>Protein 序列（Chain A，一字母碼）
+      <textarea id="protein" rows="3" placeholder="MSEVK..."></textarea>
+    </label>
+    <label>Peptide 序列（Chain B）
+      <input id="peptide" placeholder="RPKLGYAA" />
+    </label>
+    <label>結合位點約束（對象為 Chain A；留空=原生預測）
+      <input id="constraint" placeholder="A:120-140 或 A:Y45,A:K48" />
+    </label>
+    <div class="row">
+      <label>引擎
+        <select id="engine">
+          <option value="stub">stub（測試用假引擎）</option>
+          <option value="chai-1">chai-1</option>
+          <option value="boltz-2">boltz-2</option>
+        </select>
+      </label>
+      <span id="estTokens" class="muted"></span>
+    </div>
+    <button id="submitBtn">送出 Job</button>
+    <span id="submitState" class="muted"></span>
+  </section>
+
+  <!-- Job 列表 -->
+  <section id="jobs" class="card">
+    <h2>③ Jobs <button id="refreshBtn" class="small">↻ 更新</button></h2>
+    <table id="jobTable">
+      <thead><tr><th>Job</th><th>狀態</th><th>ipTM</th><th>約束滿足</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- 結果檢視 -->
+  <section id="result" class="card">
+    <h2>④ 結構檢視</h2>
+    <div id="viewer" style="width:100%;height:420px;position:relative;"></div>
+    <div class="row">
+      <button id="downloadBtn" disabled>⬇ 下載結構</button>
+      <span id="resultMeta" class="muted"></span>
+    </div>
+  </section>
+
+  <footer class="muted">
+    MVP：送單→Actions→self-hosted runner(RTX 3060)→回寫結果。詳見 docs/ARCHITECTURE.md。
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

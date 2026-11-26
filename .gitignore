@@ -1,0 +1,41 @@
+# ── 鐵則：.claude/ 永不 commit（最常見 token 洩漏來源）────────────
+.claude/
+
+# ── 機密 ────────────────────────────────────────────────────────
+.env
+.env.*
+*.key
+*.pem
+credentials.*
+serviceAccount*.json
+secrets/
+.rclone.conf
+rclone.conf
+
+# ── 雲端/系統垃圾 ───────────────────────────────────────────────
+desktop.ini
+*.tmp
+~$*
+.DS_Store
+
+# ── Python ──────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# ── Node / 前端 ─────────────────────────────────────────────────
+node_modules/
+dist/
+build/
+.cache/
+
+# ── 運算中間產物 / 權重（大檔，不進 repo）──────────────────────────
+# 注意：results/ 是交付結果（結構+分數），必須進 repo 讓前端讀取，故不在此忽略。
+runner/work/            # 引擎暫存工作目錄
+runner/models/          # 下載的模型權重（數 GB）
+runner/.venv/
+msa_cache/              # MSA 快取
+*.npz
+*.a3m

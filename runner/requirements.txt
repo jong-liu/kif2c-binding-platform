@@ -1,0 +1,6 @@
+# MVP stub 階段：純標準庫即可（無外部相依）。
+# Phase 1 接真實引擎時再加（擇一或並存）：
+#   chai_lab            # Chai-1（Apache 2.0，主引擎）
+#   boltz              # Boltz-2（MIT，對照/備援）
+#   biopython          # 結構後處理、距離計算、CIF↔PDB 轉換
+#   numpy

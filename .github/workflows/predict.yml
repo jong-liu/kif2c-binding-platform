@@ -1,0 +1,54 @@
+name: predict
+
+# 當 jobs/ 有新 job spec 被推上來時觸發；運算派到本機 self-hosted GPU runner。
+on:
+  push:
+    paths:
+      - "jobs/**.json"
+  workflow_dispatch: {}   # 也可手動觸發
+
+permissions:
+  contents: write          # 讓 runner 能把 results/ 推回 repo
+
+jobs:
+  predict:
+    # 這些標籤要對應你在本機註冊 runner 時設定的標籤
+    runs-on: [self-hosted, gpu]
+    concurrency:
+      group: gpu-rtx3060     # 單 GPU：同時只跑一個，其餘排隊
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python env (once)
+        run: |
+          python3 -m venv runner/.venv 2>/dev/null || true
+          . runner/.venv/bin/activate
+          pip install -q -r runner/requirements.txt
+
+      - name: Run pending predictions
+        run: |
+          . runner/.venv/bin/activate
+          shopt -s nullglob
+          ran=0
+          for spec in jobs/*.json; do
+            id=$(basename "$spec" .json)
+            if [ -d "results/$id" ]; then
+              echo "✓ $id 已有結果，跳過"
+              continue
+            fi
+            echo "▶ 執行 $id"
+            python runner/run_prediction.py --spec "$spec" --out "results/$id"
+            ran=$((ran+1))
+          done
+          echo "ran=$ran" >> "$GITHUB_ENV"
+
+      - name: Commit results
+        if: env.ran != '0'
+        run: |
+          git config user.name  "kif2c-runner[bot]"
+          git config user.email "runner@users.noreply.github.com"
+          git add results/
+          git commit -m "results: $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "無新結果"
+          git push
