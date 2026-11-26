@@ -134,6 +134,13 @@ def _gh_get_json(path: str):
     return r.json() if r.status_code == 200 else None
 
 
+def _job_status(scores) -> str:
+    """無 scores=running；scores.status==failed=failed；否則 succeeded。"""
+    if not scores:
+        return "running"
+    return "failed" if scores.get("status") == "failed" else "succeeded"
+
+
 # ── Auth decorator ─────────────────────────────────────
 def auth_required(fn):
     @wraps(fn)
@@ -255,6 +262,10 @@ def submit_job(user):
     est = len(protein) + len(peptide)
     if est > MAX_TOKENS:
         return jsonify({"error": f"系統過大（~{est} residues），12GB 可能 OOM，上限約 {MAX_TOKENS}"}), 400
+    # 驗證結合位點約束的殘基序號不超出 protein（Chain A）長度
+    con_nums = [int(n) for n in re.findall(r"\d+", constraint)]
+    if con_nums and max(con_nums) > len(protein):
+        return jsonify({"error": f"約束殘基最大 {max(con_nums)} 超出 protein 長度 {len(protein)}"}), 400
 
     job_id = f"job-{int(time.time() * 1000)}"
     spec = {
@@ -295,7 +306,8 @@ def list_jobs(user):
         scores = _gh_get_json(f"results/{jid}/scores.json")
         out.append({"job_id": jid, "user": rec.get("user"), "engine": rec.get("engine"),
                     "constraint": rec.get("constraint"), "created_at": rec.get("created_at"),
-                    "status": "succeeded" if scores else "running",
+                    "status": _job_status(scores),
+                    "error": scores.get("error") if scores and scores.get("status") == "failed" else None,
                     "iptm": scores.get("iptm") if scores else None,
                     "plddt": scores.get("plddt") if scores else None,
                     "contact_satisfied": scores.get("contact_satisfied") if scores else None})
@@ -312,10 +324,11 @@ def get_job(user, job_id):
     if user.get("role") != "admin" and rec.get("user") != user["sub"]:
         return jsonify({"error": "Forbidden"}), 403
     scores = _gh_get_json(f"results/{job_id}/scores.json")
+    ok = scores and scores.get("status") != "failed"
     pdb_url = (f"https://raw.githubusercontent.com/{GH_OWNER}/{GH_REPO}/{GH_BRANCH}/"
                f"results/{job_id}/complex.pdb")
-    return jsonify({"job_id": job_id, "status": "succeeded" if scores else "running",
-                    "scores": scores, "pdb_url": pdb_url if scores else None})
+    return jsonify({"job_id": job_id, "status": _job_status(scores),
+                    "scores": scores, "pdb_url": pdb_url if ok else None})
 
 
 if __name__ == "__main__":
