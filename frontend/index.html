@@ -8,72 +8,108 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <header>
-    <h1>🧬 KIF2C Binding Platform</h1>
-    <p class="sub">Protein–Peptide 結合位點約束結構預測 · Chain A = Protein，Chain B = Peptide</p>
-  </header>
+  <!-- ── 登入遮罩（未登入時覆蓋全頁）────────────────────── -->
+  <div id="loginOverlay">
+    <div class="login-box">
+      <h2>🧬 KIF2C Binding Platform</h2>
 
-  <!-- 設定（MVP：貼 repo 與 Personal Access Token；之後換 GitHub OAuth） -->
-  <section id="settings" class="card">
-    <h2>① 連線設定</h2>
-    <label>GitHub Repo（owner/name）
-      <input id="repo" placeholder="your-account/kif2c-binding-platform" />
-    </label>
-    <label>Personal Access Token（fine-grained，需 repo 寫入權；僅存本機 localStorage）
-      <input id="token" type="password" placeholder="github_pat_..." />
-    </label>
-    <button id="saveCfg">儲存設定</button>
-    <span id="cfgState" class="muted"></span>
-  </section>
+      <!-- 登入 -->
+      <div id="loginView">
+        <label>帳號
+          <input id="loginUser" placeholder="username" autocomplete="username" />
+        </label>
+        <label>密碼
+          <input id="loginPass" type="password" placeholder="password" autocomplete="current-password" />
+        </label>
+        <button class="primary" id="loginBtn">登入</button>
+        <div class="login-error" id="loginError"></div>
+        <div class="login-footer">沒有帳號？<a id="toRegister">註冊</a>（需管理員核准）</div>
+      </div>
 
-  <!-- 送單 -->
-  <section id="submit" class="card">
-    <h2>② 送出預測</h2>
-    <label>Protein 序列（Chain A，一字母碼）
-      <textarea id="protein" rows="3" placeholder="MSEVK..."></textarea>
-    </label>
-    <label>Peptide 序列（Chain B）
-      <input id="peptide" placeholder="RPKLGYAA" />
-    </label>
-    <label>結合位點約束（對象為 Chain A；留空=原生預測）
-      <input id="constraint" placeholder="A:120-140 或 A:Y45,A:K48" />
-    </label>
-    <div class="row">
-      <label>引擎
-        <select id="engine">
-          <option value="stub">stub（測試用假引擎）</option>
-          <option value="chai-1">chai-1</option>
-          <option value="boltz-2">boltz-2</option>
-        </select>
+      <!-- 註冊 -->
+      <div id="registerView" hidden>
+        <label>帳號<input id="regUser" placeholder="3–20 字母/數字/底線" /></label>
+        <label>Email<input id="regEmail" type="email" placeholder="you@example.com" /></label>
+        <label>密碼<input id="regPass" type="password" placeholder="至少 8 字元" /></label>
+        <button class="primary" id="regBtn">送出註冊</button>
+        <div class="login-error" id="regError"></div>
+        <div class="login-footer"><a id="toLogin">← 返回登入</a></div>
+      </div>
+
+      <div class="login-footer" style="margin-top:18px;border-top:1px solid var(--border);padding-top:12px;">
+        <span class="muted" style="font-size:11px">後端 API：</span>
+        <input id="apiBase" style="font-size:11px;padding:4px 6px" placeholder="https://xxxx.ngrok-free.dev" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 主程式（登入後顯示）──────────────────────────── -->
+  <div id="app" hidden>
+    <header>
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <h1>🧬 KIF2C Binding Platform</h1>
+          <p class="sub">Protein–Peptide 結合位點約束結構預測 · Chain A=Protein, Chain B=Peptide</p>
+        </div>
+        <div id="userBadge" class="muted"></div>
+      </div>
+    </header>
+
+    <!-- 送單 -->
+    <section class="card">
+      <h2>送出預測</h2>
+      <label>Protein 序列（Chain A）
+        <textarea id="protein" rows="3" placeholder="MSEVK..."></textarea>
       </label>
-      <span id="estTokens" class="muted"></span>
-    </div>
-    <button id="submitBtn">送出 Job</button>
-    <span id="submitState" class="muted"></span>
-  </section>
+      <label>Peptide 序列（Chain B）
+        <input id="peptide" placeholder="RPKLGYAA" />
+      </label>
+      <label>結合位點約束（對象 Chain A；留空=原生預測）
+        <input id="constraint" placeholder="A:120-140 或 A:Y45,A:K48" />
+      </label>
+      <div class="row">
+        <label style="flex:0 0 auto">引擎
+          <select id="engine">
+            <option value="chai-1">chai-1（真實引擎）</option>
+            <option value="stub">stub（測試）</option>
+          </select>
+        </label>
+        <span id="estTokens" class="muted"></span>
+      </div>
+      <button class="primary" id="submitBtn">送出 Job</button>
+      <span id="submitState" class="muted"></span>
+    </section>
 
-  <!-- Job 列表 -->
-  <section id="jobs" class="card">
-    <h2>③ Jobs <button id="refreshBtn" class="small">↻ 更新</button></h2>
-    <table id="jobTable">
-      <thead><tr><th>Job</th><th>狀態</th><th>ipTM</th><th>約束滿足</th><th></th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </section>
+    <!-- Jobs -->
+    <section class="card">
+      <h2>我的 Jobs <button id="refreshBtn" class="small">↻</button></h2>
+      <table id="jobTable">
+        <thead><tr><th>Job</th><th>狀態</th><th>ipTM</th><th>pLDDT</th><th>約束</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
 
-  <!-- 結果檢視 -->
-  <section id="result" class="card">
-    <h2>④ 結構檢視</h2>
-    <div id="viewer" style="width:100%;height:420px;position:relative;"></div>
-    <div class="row">
-      <button id="downloadBtn" disabled>⬇ 下載結構</button>
-      <span id="resultMeta" class="muted"></span>
-    </div>
-  </section>
+    <!-- 結果 -->
+    <section class="card">
+      <h2>結構檢視</h2>
+      <div id="viewer" style="width:100%;height:420px;position:relative;"></div>
+      <div class="row">
+        <button id="downloadBtn" disabled>⬇ 下載結構</button>
+        <span id="resultMeta" class="muted"></span>
+      </div>
+    </section>
 
-  <footer class="muted">
-    MVP：送單→Actions→self-hosted runner(RTX 3060)→回寫結果。詳見 docs/ARCHITECTURE.md。
-  </footer>
+    <!-- 管理面板（僅 admin）-->
+    <section class="card" id="adminPanel" hidden>
+      <h2>👑 使用者管理 <button id="adminRefresh" class="small">↻</button></h2>
+      <table id="userTable">
+        <thead><tr><th>帳號</th><th>Email</th><th>角色</th><th>狀態</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <footer class="muted">密碼在後端 server 驗證 · 前端不持有 GitHub token · 運算跑在 RTX 3060</footer>
+  </div>
 
   <script src="./app.js"></script>
 </body>

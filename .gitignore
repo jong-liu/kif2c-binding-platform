@@ -11,6 +11,9 @@ serviceAccount*.json
 secrets/
 .rclone.conf
 rclone.conf
+# 後端使用者資料（含密碼雜湊）與 job 紀錄 — 不進 repo
+backend/data/
+backend/uploads/
 
 # ── 雲端/系統垃圾 ───────────────────────────────────────────────
 desktop.ini
