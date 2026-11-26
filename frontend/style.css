@@ -42,6 +42,8 @@ footer { margin: 2rem 0 1rem; text-align: center; }
   position: fixed; inset: 0; background: rgba(0,0,0,.6);
   display: flex; align-items: center; justify-content: center; z-index: 100;
 }
+/* hidden 屬性要能蓋過上面的 display:flex，否則登入後遮罩不會消失 */
+#loginOverlay[hidden], #app[hidden] { display: none !important; }
 .login-box {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px;
   padding: 28px 32px; width: 340px; max-width: 92vw;
