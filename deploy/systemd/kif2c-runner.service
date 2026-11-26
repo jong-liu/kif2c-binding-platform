@@ -1,0 +1,17 @@
+[Unit]
+Description=GitHub Actions self-hosted runner (KIF2C, RTX 3060)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/actions-runner-kif2c
+ExecStart=%h/actions-runner-kif2c/run.sh
+Restart=always
+RestartSec=5
+# 讓 runner/workflow 找得到 uv、git 與持久 venv
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=KIF2C_VENV=%h/.local/share/kif2c-venv
+Environment=PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+[Install]
+WantedBy=default.target
