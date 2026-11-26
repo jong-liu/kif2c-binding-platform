@@ -12,7 +12,7 @@ const LS = {
 // 後端 API base：優先 localStorage，其次內建預設（部署時填入隧道網址）
 // ⚠️ 這是 cloudflared quick tunnel 的「臨時」網址，後端/隧道重啟就會變。
 // 正式用請改成固定的 named tunnel 網址，或在登入框的「後端 API」欄位手動覆寫。
-const DEFAULT_API_BASE = "https://advocate-snake-paris-ports.trycloudflare.com";
+const DEFAULT_API_BASE = "https://assessed-unique-accounts-acid.trycloudflare.com";
 function apiBase() { return (LS.get("kif2c_api") || DEFAULT_API_BASE).replace(/\/$/, ""); }
 function token() { return LS.get("kif2c_token"); }
 
