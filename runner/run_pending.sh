@@ -4,8 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."   # 專案根目錄
 
+# 持久 venv（在 repo 外，避免 actions/checkout 清掉）。可用 KIF2C_VENV 覆寫。
+VENV="${KIF2C_VENV:-$HOME/.local/share/kif2c-venv}"
 PY=python3
-[ -x runner/.venv/bin/python ] && PY=runner/.venv/bin/python
+[ -x "$VENV/bin/python" ] && PY="$VENV/bin/python"
+[ -x runner/.venv/bin/python ] && PY=runner/.venv/bin/python   # 本機開發若有本地 venv 優先
 
 shopt -s nullglob
 ran=0

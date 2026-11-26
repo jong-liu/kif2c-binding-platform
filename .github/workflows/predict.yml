@@ -21,13 +21,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python env (once)
+      - name: Ensure Chai-1 env (uv, 持久 venv)
+        env:
+          KIF2C_VENV: /home/jong/.local/share/kif2c-venv
         run: |
-          python3 -m venv runner/.venv 2>/dev/null || true
-          . runner/.venv/bin/activate
-          pip install -q -r runner/requirements.txt
+          export PATH="$HOME/.local/bin:$PATH"
+          # venv 不在則用 uv 建 Python 3.12（系統 python 為 3.14，chai/torch 無 wheel）
+          if [ ! -x "$KIF2C_VENV/bin/python" ]; then
+            uv venv --python 3.12 "$KIF2C_VENV"
+          fi
+          # 只在缺 chai_lab 時安裝（首次較久；之後秒過）
+          if ! "$KIF2C_VENV/bin/python" -c "import chai_lab" 2>/dev/null; then
+            uv pip install --python "$KIF2C_VENV/bin/python" -r runner/requirements.txt
+          fi
+          "$KIF2C_VENV/bin/python" -c "import torch; print('cuda:', torch.cuda.is_available())"
 
       - name: Run pending predictions
+        env:
+          KIF2C_VENV: /home/jong/.local/share/kif2c-venv
+          PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
         run: bash runner/run_pending.sh
 
       - name: Commit results
@@ -39,5 +51,10 @@ jobs:
             echo "無新結果，略過 commit"
           else
             git commit -m "results: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            git push
+            # detached HEAD → 指名分支回推；rebase 重試以防與前端送單相撞
+            for i in 1 2 3; do
+              git pull --rebase origin "${{ github.ref_name }}" \
+                && git push origin "HEAD:${{ github.ref_name }}" && break
+              echo "回推衝突，重試 $i"; sleep 3
+            done
           fi
