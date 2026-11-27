@@ -171,10 +171,12 @@ def _job_status(scores) -> str:
 
 # predict.yml 的步驟名 → 友善中文階段
 _STEP_LABELS = {
+    "Set up job": "準備工作環境",
     "Checkout": "取得程式碼",
     "Ensure Chai-1 env (uv, 持久 venv)": "準備運算環境",
     "Run pending predictions": "運算預測中（引擎推論）",
     "Commit results": "回寫結果",
+    "Complete job": "收尾中",
 }
 
 def _epoch(ts: str):
