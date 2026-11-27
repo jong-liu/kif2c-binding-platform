@@ -1,0 +1,23 @@
+{
+  "id": "job-1795752615889",
+  "created_at": "2026-11-27T04:10:15Z",
+  "protein": {
+    "chain": "A",
+    "source": "sequence",
+    "sequence": "SSFPNWEFARMIKEFRATLECHPLTMTDPIEEHRICVCVRKRPLNKQELAKKEIDVISIPSKCLLLVHEPKLKV"
+  },
+  "peptide": {
+    "chain": "B",
+    "sequence": "GKATCFAY"
+  },
+  "label": "incB",
+  "constraint": "A:20-30",
+  "engine": "stub",
+  "seed": 42,
+  "num_trunk_recycles": 2,
+  "num_diffn_timesteps": 120,
+  "use_esm": true,
+  "est_tokens": 82,
+  "submitted_by": "demo",
+  "status": "queued"
+}
