@@ -1,0 +1,23 @@
+{
+  "id": "job-1795742623212",
+  "created_at": "2026-11-27T01:23:43Z",
+  "protein": {
+    "chain": "A",
+    "source": "sequence",
+    "sequence": "SSFPNWEFARMIKEFRATLECHPLTMTDPIEEHRICVCVRKRPLNKQELAKKEIDVISIPSKCLLLVHEPKLKV"
+  },
+  "peptide": {
+    "chain": "B",
+    "sequence": "LVDLAGNE"
+  },
+  "label": "batchC",
+  "constraint": "A:20-30",
+  "engine": "stub",
+  "seed": 42,
+  "num_trunk_recycles": 2,
+  "num_diffn_timesteps": 120,
+  "use_esm": true,
+  "est_tokens": 82,
+  "submitted_by": "demo",
+  "status": "queued"
+}
