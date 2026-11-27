@@ -395,10 +395,13 @@ def list_jobs(user):
         if not is_admin and rec.get("user") != user["sub"]:
             continue
         scores = _gh_get_json(f"results/{jid}/scores.json")
+        jstatus = _job_status(scores)
+        pdb_url = (f"https://raw.githubusercontent.com/{GH_OWNER}/{GH_REPO}/{GH_BRANCH}/"
+                   f"results/{jid}/complex.pdb") if jstatus == "succeeded" else None
         out.append({"job_id": jid, "user": rec.get("user"), "engine": rec.get("engine"),
                     "label": rec.get("label"),
                     "constraint": rec.get("constraint"), "created_at": rec.get("created_at"),
-                    "status": _job_status(scores),
+                    "status": jstatus, "pdb_url": pdb_url,
                     "error": scores.get("error") if scores and scores.get("status") == "failed" else None,
                     "iptm": scores.get("iptm") if scores else None,
                     "plddt": scores.get("plddt") if scores else None,

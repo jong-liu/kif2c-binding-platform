@@ -220,9 +220,55 @@ async function refreshJobs() {
     tb.querySelectorAll("button[data-id]").forEach((b) => (b.onclick = () => viewResult(b.dataset.id)));
     tb.querySelectorAll("button[data-prog]").forEach((b) => (b.onclick = () => showProgress(b.dataset.prog)));
     tb.querySelectorAll("button[data-del]").forEach((b) => (b.onclick = () => deleteJob(b.dataset.del)));
+    allJobs = jobs;
+    populateStructSelect(jobs);
   } catch (e) { tb.innerHTML = `<tr><td colspan="7" class="muted">${e.message}</td></tr>`; }
 }
 $("refreshBtn").onclick = refreshJobs;
+
+let allJobs = []; // 最近一次 /api/jobs 的結果，供下拉與批次下載使用
+
+// 填充「選擇結構」下拉（只列已完成且有 pdb_url 的 job）
+function populateStructSelect(jobs) {
+  const sel = $("structSelect");
+  const done = jobs.filter((j) => j.status === "succeeded" && j.pdb_url);
+  const prev = sel.value;
+  sel.innerHTML = `<option value="">— 選擇要檢視的結構 —</option>` +
+    done.map((j) => `<option value="${j.job_id}">${j.label ? j.label + " · " : ""}${j.job_id}` +
+      `${j.iptm != null ? ` (ipTM ${j.iptm})` : ""}</option>`).join("");
+  if (done.some((j) => j.job_id === prev)) sel.value = prev;
+  else if (currentJob && done.some((j) => j.job_id === currentJob)) sel.value = currentJob;
+  $("downloadAllBtn").disabled = done.length === 0;
+  $("downloadAllBtn").textContent = `⬇ 下載全部結果 (ZIP)${done.length ? ` · ${done.length}` : ""}`;
+}
+$("structSelect").onchange = () => { const v = $("structSelect").value; if (v) viewResult(v); };
+
+// 批次下載：打包所有已完成 job 的 complex.pdb + summary.csv 成 ZIP
+async function downloadAll() {
+  const done = allJobs.filter((j) => j.status === "succeeded" && j.pdb_url);
+  if (!done.length) return;
+  const btn = $("downloadAllBtn"); const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = "打包中…";
+  try {
+    const zip = new JSZip();
+    const rows = [["job_id", "label", "iptm", "plddt", "contact_satisfied"]];
+    for (let i = 0; i < done.length; i++) {
+      const j = done[i];
+      btn.textContent = `打包中… ${i + 1}/${done.length}`;
+      const pdb = await (await fetch(j.pdb_url)).text();
+      const base = (j.label ? j.label.replace(/[^\w.-]/g, "_") + "_" : "") + j.job_id;
+      zip.file(base + ".pdb", pdb);
+      rows.push([j.job_id, j.label || "", j.iptm ?? "", j.plddt ?? "", j.contact_satisfied ?? ""]);
+    }
+    zip.file("summary.csv", rows.map((r) => r.join(",")).join("\n"));
+    const blob = await zip.generateAsync({ type: "blob" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `kif2c_results_${new Date().toISOString().slice(0, 10)}.zip`; a.click();
+  } catch (e) { alert("打包失敗：" + e.message); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+}
+$("downloadAllBtn").onclick = downloadAll;
 
 // 經過時間格式化（ISO 8601 → 「2分10秒」）
 function fmtElapsed(isoTs) {
@@ -321,6 +367,7 @@ $("btnReset").onclick = resetView;
 // ── 結果檢視 / 下載 ────────────────────────────────────
 async function viewResult(id) {
   currentJob = id; $("resultMeta").textContent = "載入中…";
+  if ($("structSelect").querySelector(`option[value="${id}"]`)) $("structSelect").value = id;
   try {
     const d = await api("/api/jobs/" + id);
     if (!d.pdb_url) { $("resultMeta").textContent = "結果尚未就緒"; return; }

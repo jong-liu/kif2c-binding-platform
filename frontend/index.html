@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KIF2C Binding Platform</title>
   <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -117,6 +118,12 @@ pep3,LVDLAGNER</pre>
     <!-- 結果 -->
     <section class="card">
       <h2>結構檢視</h2>
+      <div class="row" style="gap:.6rem;margin-bottom:.5rem">
+        <label style="flex:1 1 220px;margin:0">選擇結構（已完成的 job）
+          <select id="structSelect"><option value="">— 選擇要檢視的結構 —</option></select>
+        </label>
+        <button class="small" id="downloadAllBtn" disabled>⬇ 下載全部結果 (ZIP)</button>
+      </div>
       <div class="row" id="viewerControls" style="gap:.4rem;margin-bottom:.5rem">
         <button class="small vrep active" data-rep="cartoon">Cartoon</button>
         <button class="small vrep" data-rep="stick">Stick</button>
