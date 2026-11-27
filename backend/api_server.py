@@ -169,6 +169,65 @@ def _job_status(scores) -> str:
     return "failed" if scores.get("status") == "failed" else "succeeded"
 
 
+# predict.yml 的步驟名 → 友善中文階段
+_STEP_LABELS = {
+    "Checkout": "取得程式碼",
+    "Ensure Chai-1 env (uv, 持久 venv)": "準備運算環境",
+    "Run pending predictions": "運算預測中（引擎推論）",
+    "Commit results": "回寫結果",
+}
+
+def _epoch(ts: str):
+    import calendar
+    try:
+        return calendar.timegm(time.strptime(ts, "%Y-%m-%dT%H:%M:%SZ"))
+    except Exception:
+        return None
+
+def _gh_job_progress(job_id: str, created_at: str) -> dict:
+    """查 GitHub Actions，回傳該 job 對應 workflow run 的即時進度階段。"""
+    now = int(time.time())
+    e0 = _epoch(created_at) if created_at else None
+    prog = {"stage": "啟動中…", "run_status": "queued", "run_url": None,
+            "step_index": None, "total_steps": None,
+            "elapsed_sec": (now - e0) if e0 else None}
+    if not GH_TOKEN:
+        return prog
+    try:
+        url = (f"https://api.github.com/repos/{GH_OWNER}/{GH_REPO}/actions/"
+               f"workflows/predict.yml/runs?per_page=20&branch={GH_BRANCH}")
+        runs = req.get(url, headers=_gh_headers(), timeout=8).json().get("workflow_runs", [])
+        run = next((r for r in runs
+                    if job_id in ((r.get("head_commit") or {}).get("message") or "")), None)
+        if not run:
+            prog["stage"] = "排隊中（workflow 啟動中）"
+            return prog
+        prog["run_url"] = run.get("html_url")
+        prog["run_status"] = run.get("status")
+        if run.get("status") == "queued":
+            prog["stage"] = "排隊中（等待 runner 空出）"
+            return prog
+        jurl = f"https://api.github.com/repos/{GH_OWNER}/{GH_REPO}/actions/runs/{run['id']}/jobs"
+        jlist = req.get(jurl, headers=_gh_headers(), timeout=8).json().get("jobs", [])
+        if jlist:
+            steps = jlist[0].get("steps", [])
+            prog["total_steps"] = len(steps)
+            cur = next((s for s in steps if s.get("status") == "in_progress"), None)
+            if cur:
+                prog["stage"] = _STEP_LABELS.get(cur["name"], cur["name"])
+                prog["step_index"] = cur.get("number")
+                st = cur.get("started_at")
+                if st and _epoch(st):
+                    prog["step_elapsed_sec"] = now - _epoch(st)
+            elif run.get("status") == "completed":
+                prog["stage"] = "收尾中（回寫結果）"
+            else:
+                prog["stage"] = "執行中…"
+    except Exception as e:
+        print(f"[progress] {job_id}: {e}")
+    return prog
+
+
 # ── Auth decorator ─────────────────────────────────────
 def auth_required(fn):
     @wraps(fn)
@@ -355,11 +414,15 @@ def get_job(user, job_id):
     if user.get("role") != "admin" and rec.get("user") != user["sub"]:
         return jsonify({"error": "Forbidden"}), 403
     scores = _gh_get_json(f"results/{job_id}/scores.json")
+    status = _job_status(scores)
     ok = scores and scores.get("status") != "failed"
     pdb_url = (f"https://raw.githubusercontent.com/{GH_OWNER}/{GH_REPO}/{GH_BRANCH}/"
                f"results/{job_id}/complex.pdb")
-    return jsonify({"job_id": job_id, "status": _job_status(scores),
-                    "scores": scores, "pdb_url": pdb_url if ok else None})
+    resp = {"job_id": job_id, "status": status,
+            "scores": scores, "pdb_url": pdb_url if ok else None}
+    if status == "running":   # 只在運行中才查 Actions 進度（避免多餘 API 呼叫）
+        resp["progress"] = _gh_job_progress(job_id, rec.get("created_at"))
+    return jsonify(resp)
 
 
 @app.route("/api/jobs/<job_id>", methods=["DELETE"])

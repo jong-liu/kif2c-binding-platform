@@ -206,19 +206,52 @@ async function refreshJobs() {
       const tr = document.createElement("tr");
       const done = j.status === "succeeded";
       const failed = j.status === "failed";
+      const running = j.status === "running";
+      const elapsed = running && j.created_at
+        ? ` <span class="muted elapsed" data-start="${j.created_at}">· ${fmtElapsed(j.created_at)}</span>` : "";
       tr.innerHTML = `<td>${j.job_id}</td>
         <td>${j.label || "—"}</td>
-        <td><span class="badge ${done ? "succeeded" : failed ? "failed" : "running"}">${j.status}</span></td>
+        <td><span class="badge ${done ? "succeeded" : failed ? "failed" : "running"}">${j.status}</span>${elapsed}</td>
         <td>${j.iptm ?? "—"}</td><td>${j.plddt ?? "—"}</td>
         <td>${j.constraint || "—"}</td>
-        <td>${done ? `<button class="small" data-id="${j.job_id}">檢視</button> ` : ""}<button class="small danger" data-del="${j.job_id}">刪除</button></td>`;
+        <td>${done ? `<button class="small" data-id="${j.job_id}">檢視</button> ` : ""}${running ? `<button class="small" data-prog="${j.job_id}">進度</button> ` : ""}<button class="small danger" data-del="${j.job_id}">刪除</button></td>`;
       tb.appendChild(tr);
     }
     tb.querySelectorAll("button[data-id]").forEach((b) => (b.onclick = () => viewResult(b.dataset.id)));
+    tb.querySelectorAll("button[data-prog]").forEach((b) => (b.onclick = () => showProgress(b.dataset.prog)));
     tb.querySelectorAll("button[data-del]").forEach((b) => (b.onclick = () => deleteJob(b.dataset.del)));
   } catch (e) { tb.innerHTML = `<tr><td colspan="7" class="muted">${e.message}</td></tr>`; }
 }
 $("refreshBtn").onclick = refreshJobs;
+
+// 經過時間格式化（ISO 8601 → 「2分10秒」）
+function fmtElapsed(isoTs) {
+  const sec = Math.max(0, Math.floor((Date.now() - Date.parse(isoTs)) / 1000));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m ? `已 ${m}分${s}秒` : `已 ${s}秒`;
+}
+// 每秒刷新 running 列的經過時間（不打後端）
+setInterval(() => {
+  document.querySelectorAll(".elapsed[data-start]").forEach((el) => {
+    el.textContent = "· " + fmtElapsed(el.dataset.start);
+  });
+}, 1000);
+
+// 查某 running job 的即時進度（呼叫後端 → GitHub Actions）
+async function showProgress(id) {
+  $("resultMeta").textContent = `讀取 ${id} 進度中…`;
+  currentJob = null; currentPdb = null;
+  $("downloadBtn").disabled = true; $("viewer").innerHTML = "";
+  try {
+    const d = await api("/api/jobs/" + id);
+    if (d.status !== "running") { $("resultMeta").textContent = `${id} 已 ${d.status}，請按「↻」刷新列表`; refreshJobs(); return; }
+    const p = d.progress || {};
+    const step = (p.step_index && p.total_steps) ? ` · 第 ${p.step_index}/${p.total_steps} 步` : "";
+    const el = (p.elapsed_sec != null) ? ` · 已 ${Math.floor(p.elapsed_sec / 60)}分${p.elapsed_sec % 60}秒` : "";
+    const link = p.run_url ? `　<a href="${p.run_url}" target="_blank" rel="noopener">Actions ↗</a>` : "";
+    $("resultMeta").innerHTML = `⏳ <b>${id}</b> · ${p.stage || "執行中…"}${step}${el}${link}`;
+  } catch (e) { $("resultMeta").textContent = "進度讀取失敗：" + e.message; }
+}
 
 async function deleteJob(id) {
   if (!confirm(`確定刪除 ${id}？\n將一併移除 GitHub 上的 job 與結果檔，無法復原。`)) return;
