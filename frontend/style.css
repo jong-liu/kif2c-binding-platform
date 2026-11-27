@@ -27,6 +27,7 @@ button {
   padding: .5rem .9rem; font-size: .95rem; cursor: pointer; margin-top: .4rem;
 }
 button.small { padding: .2rem .5rem; font-size: .8rem; }
+button.danger { background: var(--err); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 /* Peptide 輸入模式切換（segmented control） */
 button.seg { background: #0d0f16; color: var(--muted); border: 1px solid var(--border); margin-top: 0; }

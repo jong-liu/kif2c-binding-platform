@@ -211,13 +211,26 @@ async function refreshJobs() {
         <td><span class="badge ${done ? "succeeded" : failed ? "failed" : "running"}">${j.status}</span></td>
         <td>${j.iptm ?? "—"}</td><td>${j.plddt ?? "—"}</td>
         <td>${j.constraint || "—"}</td>
-        <td>${done ? `<button class="small" data-id="${j.job_id}">檢視</button>` : ""}</td>`;
+        <td>${done ? `<button class="small" data-id="${j.job_id}">檢視</button> ` : ""}<button class="small danger" data-del="${j.job_id}">刪除</button></td>`;
       tb.appendChild(tr);
     }
     tb.querySelectorAll("button[data-id]").forEach((b) => (b.onclick = () => viewResult(b.dataset.id)));
+    tb.querySelectorAll("button[data-del]").forEach((b) => (b.onclick = () => deleteJob(b.dataset.del)));
   } catch (e) { tb.innerHTML = `<tr><td colspan="7" class="muted">${e.message}</td></tr>`; }
 }
 $("refreshBtn").onclick = refreshJobs;
+
+async function deleteJob(id) {
+  if (!confirm(`確定刪除 ${id}？\n將一併移除 GitHub 上的 job 與結果檔，無法復原。`)) return;
+  try {
+    await api("/api/jobs/" + id, { method: "DELETE" });
+    if (currentJob === id) { // 若正在檢視這個 job，一併清掉檢視區
+      currentJob = null; currentPdb = null;
+      $("downloadBtn").disabled = true; $("resultMeta").textContent = ""; $("viewer").innerHTML = "";
+    }
+    refreshJobs();
+  } catch (e) { alert("刪除失敗：" + e.message); }
+}
 
 // ── 結果檢視 / 下載 ────────────────────────────────────
 async function viewResult(id) {

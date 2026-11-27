@@ -133,6 +133,34 @@ def _gh_get_json(path: str):
     r = req.get(url)
     return r.json() if r.status_code == 200 else None
 
+def _gh_contents(path: str):
+    """GET Contents API：檔案回 dict（含 sha），目錄回 list。找不到回 None。"""
+    url = f"https://api.github.com/repos/{GH_OWNER}/{GH_REPO}/contents/{path}?ref={GH_BRANCH}"
+    r = req.get(url, headers=_gh_headers())
+    return r.json() if r.status_code == 200 else None
+
+def _gh_delete_file(path: str, sha: str, msg: str):
+    url = f"https://api.github.com/repos/{GH_OWNER}/{GH_REPO}/contents/{path}"
+    return req.delete(url, headers=_gh_headers(),
+                      json={"message": msg, "sha": sha, "branch": GH_BRANCH})
+
+def _gh_delete_job_files(job_id: str) -> int:
+    """best-effort 刪 jobs/<id>.json 與 results/<id>/* 整個目錄。回傳刪除檔數。"""
+    deleted = 0
+    listing = _gh_contents(f"results/{job_id}")
+    if isinstance(listing, list):
+        for item in listing:
+            if item.get("type") == "file" and item.get("sha"):
+                if _gh_delete_file(item["path"], item["sha"],
+                                   f"cleanup: delete {item['path']}").status_code == 200:
+                    deleted += 1
+    jobf = _gh_contents(f"jobs/{job_id}.json")
+    if isinstance(jobf, dict) and jobf.get("sha"):
+        if _gh_delete_file(f"jobs/{job_id}.json", jobf["sha"],
+                           f"cleanup: delete job {job_id}").status_code == 200:
+            deleted += 1
+    return deleted
+
 
 def _job_status(scores) -> str:
     """無 scores=running；scores.status==failed=failed；否則 succeeded。"""
@@ -332,6 +360,28 @@ def get_job(user, job_id):
                f"results/{job_id}/complex.pdb")
     return jsonify({"job_id": job_id, "status": _job_status(scores),
                     "scores": scores, "pdb_url": pdb_url if ok else None})
+
+
+@app.route("/api/jobs/<job_id>", methods=["DELETE"])
+@auth_required
+def delete_job(user, job_id):
+    """刪除 job：擁有者本人或 admin 可刪。移除後端記錄 + GitHub 上的 job/結果檔。"""
+    with _jobs_lock:
+        jobs = load_jobs()
+        rec = jobs.get(job_id)
+        if not rec:
+            return jsonify({"error": "No such job"}), 404
+        if user.get("role") != "admin" and rec.get("user") != user["sub"]:
+            return jsonify({"error": "Forbidden"}), 403
+        del jobs[job_id]          # 先移除後端記錄 → 使用者列表立即消失
+        save_jobs(jobs)
+    files_removed = 0             # 再 best-effort 清掉 GitHub 上的檔案
+    if GH_TOKEN:
+        try:
+            files_removed = _gh_delete_job_files(job_id)
+        except Exception as e:
+            print(f"[delete_job] GitHub 清檔失敗 {job_id}: {e}")
+    return jsonify({"message": f"job {job_id} deleted", "files_removed": files_removed})
 
 
 if __name__ == "__main__":
