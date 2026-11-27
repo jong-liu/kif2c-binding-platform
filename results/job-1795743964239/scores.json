@@ -1,0 +1,22 @@
+{
+  "engine": "stub",
+  "plddt": 69.0,
+  "iptm": 0.689,
+  "contact_satisfied": 1.0,
+  "constraint_mode": "range",
+  "constrained_residues": [
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30
+  ],
+  "note": "STUB 假結構，僅供管線測試；非真實預測。",
+  "rank_score": 0.689
+}
