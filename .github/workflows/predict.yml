@@ -3,6 +3,7 @@ name: predict
 # 當 jobs/ 有新 job spec 被推上來時觸發；運算派到本機 self-hosted GPU runner。
 on:
   push:
+    branches: [main]      # 僅 main 分支；避免推 tag 時誤觸發重跑整批
     paths:
       - "jobs/**.json"
   workflow_dispatch: {}   # 也可手動觸發
@@ -40,20 +41,24 @@ jobs:
         env:
           KIF2C_VENV: /home/jong/.local/share/kif2c-venv
           PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
-        run: bash runner/run_pending.sh
+          KIF2C_COMMIT_EACH: "1"     # 每跑完一條就 commit+push（前端即時可見、不會被重 checkout 清掉）
+        run: |
+          git config user.name  "kif2c-runner[bot]"
+          git config user.email "runner@users.noreply.github.com"
+          bash runner/run_pending.sh
 
-      - name: Commit results
+      - name: Commit results (safety net)
+        # 收尾安全網：逐條推送若有漏網（push 全失敗），這裡補推一次
         run: |
           git config user.name  "kif2c-runner[bot]"
           git config user.email "runner@users.noreply.github.com"
           git add results/
           if git diff --cached --quiet; then
-            echo "無新結果，略過 commit"
+            echo "無漏網結果，略過"
           else
-            git commit -m "results: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            # detached HEAD → 指名分支回推；rebase 重試以防與前端送單相撞
+            git commit -m "results: $(date -u +%Y-%m-%dT%H:%M:%SZ) (safety net)"
             for i in 1 2 3; do
-              git pull --rebase origin "${{ github.ref_name }}" \
+              git pull --rebase --autostash origin "${{ github.ref_name }}" \
                 && git push origin "HEAD:${{ github.ref_name }}" && break
               echo "回推衝突，重試 $i"; sleep 3
             done
