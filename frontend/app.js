@@ -176,5 +176,6 @@ async function loadUsers() {
 $("adminRefresh").onclick = loadUsers;
 
 // ── init ───────────────────────────────────────────────
+estTokens(); // 預設序列已帶入 → 載入即顯示殘基數估算
 setInterval(() => { if (!$("app").hidden) refreshJobs(); }, 20000);
 if (token()) enterApp();
