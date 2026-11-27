@@ -80,51 +80,142 @@ function enterApp() {
   refreshJobs();
 }
 
+// ── Peptide 輸入模式：single / multiple(CSV) ────────────
+let peptideMode = "single";
+let csvPeptides = []; // [{name, seq}]
+const AA_RE = /^[ACDEFGHIKLMNPQRSTVWY]+$/;
+
+function setMode(m) {
+  peptideMode = m;
+  $("modeSingle").classList.toggle("active", m === "single");
+  $("modeMulti").classList.toggle("active", m === "multi");
+  $("singlePane").hidden = m !== "single";
+  $("multiPane").hidden = m !== "multi";
+  $("submitBtn").textContent = m === "multi" ? "批次送出 Jobs" : "送出 Job";
+  estTokens();
+}
+$("modeSingle").onclick = () => setMode("single");
+$("modeMulti").onclick = () => setMode("multi");
+
+function parsePeptideCsv(text) {
+  const rows = [];
+  const HEADER_RE = /^(name|id|label|peptide|seq|sequence)$/i;
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  lines.forEach((line, i) => {
+    const cols = line.split(",").map((c) => c.trim());
+    let seq = (cols.length >= 2 ? cols[1] : cols[0] || "").toUpperCase().replace(/\s/g, "");
+    // 標題列（第一列，且任一欄位是 name/peptide/seq… 這類關鍵字）→ 略過
+    if (i === 0 && cols.some((c) => HEADER_RE.test(c))) return;
+    if (!seq) return;
+    if (!AA_RE.test(seq)) throw new Error(`第 ${i + 1} 行含非胺基酸字元：${seq}`);
+    const name = cols.length >= 2 && cols[0] ? cols[0] : `pep${rows.length + 1}`;
+    rows.push({ name, seq });
+  });
+  if (!rows.length) throw new Error("CSV 沒有有效的 peptide 序列");
+  return rows;
+}
+
+$("peptideCsv").onchange = async (e) => {
+  csvPeptides = [];
+  const f = e.target.files[0];
+  if (!f) { $("csvPreview").textContent = ""; estTokens(); return; }
+  try {
+    csvPeptides = parsePeptideCsv(await f.text());
+    const head = csvPeptides.slice(0, 5).map((p) => `${p.name}(${p.seq.length}aa)`).join("、");
+    $("csvPreview").innerHTML = `✓ 讀到 <b>${csvPeptides.length}</b> 個 peptide：${head}${csvPeptides.length > 5 ? " …" : ""}`;
+    $("csvPreview").style.color = "var(--ok)";
+  } catch (err) {
+    $("csvPreview").textContent = "✗ " + err.message;
+    $("csvPreview").style.color = "var(--err)";
+  }
+  estTokens();
+};
+
+$("dlCsvTemplate").onclick = (e) => {
+  e.preventDefault();
+  const blob = new Blob(["name,peptide\npep1,RPKLGYAA\npep2,GKATCFAYGQ\npep3,LVDLAGNER\n"], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "peptides_template.csv"; a.click();
+};
+
 // ── Token 估算 ─────────────────────────────────────────
 function estTokens() {
-  const t = $("protein").value.replace(/\s/g, "").length + $("peptide").value.replace(/\s/g, "").length;
+  const prot = $("protein").value.replace(/\s/g, "").length;
+  if (peptideMode === "multi") {
+    $("estTokens").textContent = csvPeptides.length
+      ? `${csvPeptides.length} 個 peptide，將各送一個 job（每個 ≈ ${prot}+peptide residues）`
+      : "";
+    return;
+  }
+  const t = prot + $("peptide").value.replace(/\s/g, "").length;
   $("estTokens").textContent = t ? `約 ${t} residues${t > 600 ? " ⚠️ 12GB 可能 OOM" : ""}` : "";
 }
 $("protein").oninput = estTokens; $("peptide").oninput = estTokens;
 
-// ── 送單 ───────────────────────────────────────────────
+// ── 送單（single 一個 / multiple 批次）──────────────────
 $("submitBtn").onclick = async () => {
-  $("submitState").textContent = "送出中…";
-  try {
-    const d = await api("/api/jobs", {
-      method: "POST",
-      body: JSON.stringify({
-        protein: $("protein").value.replace(/\s/g, ""),
-        peptide: $("peptide").value.replace(/\s/g, ""),
-        constraint: $("constraint").value.trim(),
-        engine: $("engine").value,
-      }),
-    });
-    $("submitState").textContent = `已送出 ${d.job_id} ✓`;
-    refreshJobs();
-  } catch (e) { $("submitState").textContent = "失敗：" + e.message; }
+  const protein = $("protein").value.replace(/\s/g, "");
+  const constraint = $("constraint").value.trim();
+  const engine = $("engine").value;
+  $("submitState").style.color = "";
+
+  if (peptideMode === "single") {
+    $("submitState").textContent = "送出中…";
+    try {
+      const d = await api("/api/jobs", {
+        method: "POST",
+        body: JSON.stringify({ protein, peptide: $("peptide").value.replace(/\s/g, ""), constraint, engine }),
+      });
+      $("submitState").textContent = `已送出 ${d.job_id} ✓`;
+      refreshJobs();
+    } catch (e) { $("submitState").style.color = "var(--err)"; $("submitState").textContent = "失敗：" + e.message; }
+    return;
+  }
+
+  // multiple：逐條送出（單 GPU → runner 會自行排隊循序處理）
+  if (!csvPeptides.length) { $("submitState").style.color = "var(--err)"; $("submitState").textContent = "請先上傳有效的 CSV"; return; }
+  $("submitBtn").disabled = true;
+  let ok = 0; const fails = [];
+  for (let i = 0; i < csvPeptides.length; i++) {
+    const p = csvPeptides[i];
+    $("submitState").textContent = `批次送出中… ${i + 1}/${csvPeptides.length}（${p.name}）`;
+    try {
+      await api("/api/jobs", {
+        method: "POST",
+        body: JSON.stringify({ protein, peptide: p.seq, constraint, engine, label: p.name }),
+      });
+      ok++;
+    } catch (e) { fails.push(`${p.name}：${e.message}`); }
+  }
+  $("submitBtn").disabled = false;
+  $("submitState").style.color = fails.length ? "var(--warn)" : "var(--ok)";
+  $("submitState").textContent = `批次完成：成功 ${ok} / ${csvPeptides.length}` +
+    (fails.length ? `，失敗 ${fails.length}（${fails.slice(0, 3).join("；")}${fails.length > 3 ? " …" : ""}）` : "");
+  refreshJobs();
 };
 
 // ── Jobs 列表 ──────────────────────────────────────────
 async function refreshJobs() {
   const tb = $("jobTable").querySelector("tbody");
-  tb.innerHTML = `<tr><td colspan="6" class="muted">載入中…</td></tr>`;
+  tb.innerHTML = `<tr><td colspan="7" class="muted">載入中…</td></tr>`;
   try {
     const { jobs } = await api("/api/jobs");
     tb.innerHTML = "";
-    if (!jobs.length) { tb.innerHTML = `<tr><td colspan="6" class="muted">尚無 job</td></tr>`; return; }
+    if (!jobs.length) { tb.innerHTML = `<tr><td colspan="7" class="muted">尚無 job</td></tr>`; return; }
     for (const j of jobs) {
       const tr = document.createElement("tr");
       const done = j.status === "succeeded";
+      const failed = j.status === "failed";
       tr.innerHTML = `<td>${j.job_id}</td>
-        <td><span class="badge ${done ? "succeeded" : "running"}">${j.status}</span></td>
+        <td>${j.label || "—"}</td>
+        <td><span class="badge ${done ? "succeeded" : failed ? "failed" : "running"}">${j.status}</span></td>
         <td>${j.iptm ?? "—"}</td><td>${j.plddt ?? "—"}</td>
         <td>${j.constraint || "—"}</td>
         <td>${done ? `<button class="small" data-id="${j.job_id}">檢視</button>` : ""}</td>`;
       tb.appendChild(tr);
     }
     tb.querySelectorAll("button[data-id]").forEach((b) => (b.onclick = () => viewResult(b.dataset.id)));
-  } catch (e) { tb.innerHTML = `<tr><td colspan="6" class="muted">${e.message}</td></tr>`; }
+  } catch (e) { tb.innerHTML = `<tr><td colspan="7" class="muted">${e.message}</td></tr>`; }
 }
 $("refreshBtn").onclick = refreshJobs;
 

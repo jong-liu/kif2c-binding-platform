@@ -256,6 +256,7 @@ def submit_job(user):
     protein = (data.get("protein") or "").strip()
     peptide = (data.get("peptide") or "").strip()
     constraint = (data.get("constraint") or "").strip()
+    label = (data.get("label") or "").strip()[:40]  # peptide 名稱（批次 CSV 用）
     engine = data.get("engine", "chai-1")
     if not protein or not peptide:
         return jsonify({"error": "protein 與 peptide 序列必填"}), 400
@@ -273,6 +274,7 @@ def submit_job(user):
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "protein": {"chain": "A", "source": "sequence", "sequence": protein},
         "peptide": {"chain": "B", "sequence": peptide},
+        "label": label,
         "constraint": constraint,
         "engine": engine,
         "seed": int(data.get("seed", 42)),
@@ -289,7 +291,7 @@ def submit_job(user):
     with _jobs_lock:
         jobs = load_jobs()
         jobs[job_id] = {"user": user["sub"], "engine": engine, "constraint": constraint,
-                        "created_at": spec["created_at"], "est_tokens": est}
+                        "label": label, "created_at": spec["created_at"], "est_tokens": est}
         save_jobs(jobs)
     return jsonify({"job_id": job_id, "status": "queued", "est_tokens": est})
 
@@ -305,6 +307,7 @@ def list_jobs(user):
             continue
         scores = _gh_get_json(f"results/{jid}/scores.json")
         out.append({"job_id": jid, "user": rec.get("user"), "engine": rec.get("engine"),
+                    "label": rec.get("label"),
                     "constraint": rec.get("constraint"), "created_at": rec.get("created_at"),
                     "status": _job_status(scores),
                     "error": scores.get("error") if scores and scores.get("status") == "failed" else None,
