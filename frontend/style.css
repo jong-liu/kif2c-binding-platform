@@ -28,6 +28,9 @@ button {
 }
 button.small { padding: .2rem .5rem; font-size: .8rem; }
 button.danger { background: var(--err); }
+/* 結構檢視控制鈕：預設深色，啟用中(active)亮藍 */
+#viewerControls button { background: #0d0f16; color: var(--muted); border: 1px solid var(--border); }
+#viewerControls button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 /* Peptide 輸入模式切換（segmented control） */
 button.seg { background: #0d0f16; color: var(--muted); border: 1px solid var(--border); margin-top: 0; }

@@ -232,6 +232,59 @@ async function deleteJob(id) {
   } catch (e) { alert("刪除失敗：" + e.message); }
 }
 
+// ── 結構檢視器（3Dmol）────────────────────────────────
+let viewer3d = null, surfaceOn = false, spinning = false, currentRep = "cartoon";
+const CHAIN_COLOR = { A: "#5b8cff", B: "#d29922" }; // A=protein 藍、B=peptide 橘
+
+// 套用主要表現法（cartoon / stick / sphere），依 chain 上色
+function setRep(mode) {
+  if (!viewer3d) return;
+  currentRep = mode;
+  viewer3d.setStyle({}, {}); // 清空既有樣式（不動 surface）
+  if (mode === "cartoon") {
+    viewer3d.setStyle({ chain: "A" }, { cartoon: { color: CHAIN_COLOR.A } });
+    // peptide 多半短，cartoon 外再疊細 stick 讓它看得見
+    viewer3d.setStyle({ chain: "B" }, { cartoon: { color: CHAIN_COLOR.B }, stick: { color: CHAIN_COLOR.B, radius: 0.15 } });
+  } else if (mode === "stick") {
+    viewer3d.setStyle({ chain: "A" }, { stick: { color: CHAIN_COLOR.A, radius: 0.18 } });
+    viewer3d.setStyle({ chain: "B" }, { stick: { color: CHAIN_COLOR.B, radius: 0.22 } });
+  } else if (mode === "sphere") {
+    viewer3d.setStyle({ chain: "A" }, { sphere: { color: CHAIN_COLOR.A } });
+    viewer3d.setStyle({ chain: "B" }, { sphere: { color: CHAIN_COLOR.B } });
+  }
+  viewer3d.render();
+  document.querySelectorAll(".vrep").forEach((b) => b.classList.toggle("active", b.dataset.rep === mode));
+}
+
+function toggleSurface() {
+  if (!viewer3d) return;
+  if (surfaceOn) { viewer3d.removeAllSurfaces(); surfaceOn = false; }
+  else { viewer3d.addSurface($3Dmol.SurfaceType.VDW, { opacity: 0.7, color: "#8b90a0" }, { chain: "A" }); surfaceOn = true; }
+  viewer3d.render();
+  $("btnSurface").classList.toggle("active", surfaceOn);
+}
+
+function toggleSpin() {
+  if (!viewer3d) return;
+  spinning = !spinning;
+  viewer3d.spin(spinning ? "y" : false);
+  $("btnRotate").classList.toggle("active", spinning);
+}
+
+function resetView() {
+  if (!viewer3d) return;
+  if (surfaceOn) { viewer3d.removeAllSurfaces(); surfaceOn = false; $("btnSurface").classList.remove("active"); }
+  if (spinning) { spinning = false; viewer3d.spin(false); $("btnRotate").classList.remove("active"); }
+  setRep("cartoon");       // 回到預設 cartoon
+  viewer3d.zoomTo(); viewer3d.render();
+}
+
+// 控制鈕（只需綁一次）
+document.querySelectorAll(".vrep").forEach((b) => (b.onclick = () => setRep(b.dataset.rep)));
+$("btnSurface").onclick = toggleSurface;
+$("btnRotate").onclick = toggleSpin;
+$("btnReset").onclick = resetView;
+
 // ── 結果檢視 / 下載 ────────────────────────────────────
 async function viewResult(id) {
   currentJob = id; $("resultMeta").textContent = "載入中…";
@@ -240,11 +293,12 @@ async function viewResult(id) {
     if (!d.pdb_url) { $("resultMeta").textContent = "結果尚未就緒"; return; }
     currentPdb = await (await fetch(d.pdb_url)).text();
     const el = $("viewer"); el.innerHTML = "";
-    const v = $3Dmol.createViewer(el, { backgroundColor: "#0d0f16" });
-    v.addModel(currentPdb, "pdb");
-    v.setStyle({ chain: "A" }, { cartoon: { color: "#5b8cff" }, sphere: { radius: 0.5, color: "#5b8cff" } });
-    v.setStyle({ chain: "B" }, { stick: { color: "#d29922" }, sphere: { radius: 0.9, color: "#d29922" } });
-    v.zoomTo(); v.render();
+    viewer3d = $3Dmol.createViewer(el, { backgroundColor: "#0d0f16" });
+    viewer3d.addModel(currentPdb, "pdb");
+    surfaceOn = false; spinning = false;
+    $("btnSurface").classList.remove("active"); $("btnRotate").classList.remove("active");
+    setRep("cartoon");       // 預設 cartoon 顯示
+    viewer3d.zoomTo(); viewer3d.render();
     $("downloadBtn").disabled = false;
     const s = d.scores || {};
     $("resultMeta").textContent = `${id} · ipTM ${s.iptm ?? "—"} / pLDDT ${s.plddt ?? "—"} / 約束滿足 ${s.contact_satisfied ?? "—"}`;

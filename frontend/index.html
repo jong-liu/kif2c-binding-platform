@@ -117,6 +117,14 @@ pep3,LVDLAGNER</pre>
     <!-- 結果 -->
     <section class="card">
       <h2>結構檢視</h2>
+      <div class="row" id="viewerControls" style="gap:.4rem;margin-bottom:.5rem">
+        <button class="small vrep active" data-rep="cartoon">Cartoon</button>
+        <button class="small vrep" data-rep="stick">Stick</button>
+        <button class="small vrep" data-rep="sphere">Sphere</button>
+        <button class="small vtog" id="btnSurface">Surface</button>
+        <button class="small vtog" id="btnRotate">Rotate</button>
+        <button class="small" id="btnReset">Reset</button>
+      </div>
       <div id="viewer" style="width:100%;height:420px;position:relative;"></div>
       <div class="row">
         <button id="downloadBtn" disabled>⬇ 下載結構</button>
